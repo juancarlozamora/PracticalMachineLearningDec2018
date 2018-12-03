@@ -2,10 +2,12 @@
 title: "Coursera Project Prediction Assignment 2018"
 author: "Zamora, Juan Carlo"
 date: "December 3, 2018"
-output:   
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
   md_document:
     variant: markdown_github
-
 ---
 
 ```{r setup, include=FALSE}
@@ -29,18 +31,18 @@ https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
 
 The data for this project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
 
+## Data Preprocessing  
+**If you don't have these packages it, install it**
 
-## Data Preprocessing
 ```{r, cache = T}
 library(caret)
 library(rpart)
 library(rpart.plot)
 library(randomForest)
 library(corrplot)
+library(ggplot2)
 ```
-
 ### Download the Data
-
 Donload the data from the links provided
 ```{r, cache = T}
 trainUrl <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
@@ -57,10 +59,8 @@ if (!file.exists(testFile)) {
   download.file(testUrl, destfile=testFile, method="curl")
 }
 ```  
-
-## Read the Data
-
-After downloading the data from the data source,  read the two csv files into two data frames.  
+### Read the Data
+After downloading the data from the data source, we can read the two csv files into two data frames.  
 ```{r, cache = T}
 trainRaw <- read.csv("./data/pml-training.csv")
 testRaw <- read.csv("./data/pml-testing.csv")
@@ -99,7 +99,7 @@ The "classe" variable is still in the cleaned training set.
 
 ### Slice the data
 This step cleans the training set into a pure training data set (70%) and a validation data set (30%). 
-Use the validation data set to conduct cross validation in upcoming steps.  
+Use the validation data set to conduct cross validation in upcoming steps.
 ```{r, cache = T}
 set.seed(22519) # For reproducibile purpose
 inTrain <- createDataPartition(trainCleaned$classe, p=0.70, list=F)
@@ -108,13 +108,14 @@ testData <- trainCleaned[-inTrain, ]
 ```
 
 ## Data Modeling
-We fit a predictive model for activity recognition using **Random Forest** algorithm because it automatically selects important variables and is robust to correlated covariates & outliers in general. We will use **5-fold cross validation** when applying the algorithm.  
+Fit a predictive model for activity recognition using Random Forest algorithm because it automatically selects important variables.
+Use 5-fold cross validation when applying the algorithm.  
 ```{r, cache = T}
 controlRf <- trainControl(method="cv", 5)
 modelRf <- train(classe ~ ., data=trainData, method="rf", trControl=controlRf, ntree=250)
 modelRf
 ```
-Then, we estimate the performance of the model on the validation data set.  
+Estimate the performance of the model on the validation data set.  
 ```{r, cache = T}
 predictRf <- predict(modelRf, testData)
 confusionMatrix(testData$classe, predictRf)
@@ -125,23 +126,11 @@ accuracy
 oose <- 1 - as.numeric(confusionMatrix(testData$classe, predictRf)$overall[1])
 oose
 ```
-So, the estimated accuracy of the model is 99.42% and the estimated out-of-sample error is 0.58%.
+**Result*** - The estimated accuracy of the model is 99.42% and the estimated out-of-sample error is 0.58%.
 
 ## Predicting for Test Data Set
-Now, we apply the model to the original testing data set downloaded from the data source. We remove the `problem_id` column first.  
+Apply the model to the original testing data set downloaded from the data source. We remove the `problem_id` column first.  
 ```{r, cache = T}
 result <- predict(modelRf, testCleaned[, -length(names(testCleaned))])
 result
 ```  
-
-## Appendix: Figures
-1. Correlation Matrix Visualization  
-```{r, cache = T}
-corrPlot <- cor(trainData[, -length(names(trainData))])
-corrplot(corrPlot, method="color")
-```
-2. Decision Tree Visualization
-```{r, cache = T}
-treeModel <- rpart(classe ~ ., data=trainData, method="class")
-prp(treeModel) # fast plot
-```
